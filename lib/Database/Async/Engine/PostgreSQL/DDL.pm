@@ -233,7 +233,7 @@ create [% IF table.temporary %]temporary [% END %][% IF table.unlogged %]unlogge
     "[% field.name %]" [% IF field.type.schema.defined %]"[% field.type.schema %]".[% END %][% IF field.type.is_builtin; field.type.name; ELSE %]"[% field.type.name %]"[% END %][% IF !field.nullable %] not null[% END %][% IF table.primary_keys.size > 0 || !loop.last %],[% END %]
 [% END -%]
 [% IF table.primary_keys.size -%]
-    primary key ([% table.primary_keys.join(',') %])
+    primary key ([% join ', ', map qq/"$_"/, table.primary_keys %])
 [% END -%]
 )[% IF table.parents.size %] inherits (
 [% FOREACH parent IN table.parents -%]
