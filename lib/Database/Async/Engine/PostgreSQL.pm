@@ -184,15 +184,39 @@ async sub connect {
 
     # We're assuming TCP (either v4 or v6) here, but there's not really any reason we couldn't have
     # UNIX sockets or other transport layers here other than lack of demand so far.
-    my $sock = await $loop->connect(
-        service     => $uri->port,
-        host        => $uri->host,
-        socktype    => 'stream',
-    );
+    my @connect_params;
+    if ($uri->host and not $uri->host =~ m!^[/@]!) {
+        @connect_params = (
+            service     => $uri->port,
+            host        => $uri->host,
+            socktype    => 'stream',
+        );
+    } elsif ($uri->host eq '') {
+        @connect_params = (
+            addr => {
+                family   => 'unix',
+                socktype => 'stream',
+                path     => '/var/run/postgresql/.s.PGSQL.'.$uri->port,
+            }
+        );
+    } else {
+        @connect_params = (
+            addr => {
+                family   => 'unix',
+                socktype => 'stream',
+                path     => $uri->host.'/.s.PGSQL.'.$uri->port,
+            }
+        );
+    }
+    my $sock = await $loop->connect(@connect_params);
 
-    my $local  = join ':', $sock->sockhost_service(1);
-    my $remote = join ':', $sock->peerhost_service(1);
-    $log->tracef('Connected to %s as %s from %s', $endpoint, $remote, $local);
+    if ($sock->sockdomain == Socket::PF_INET or $sock->sockdomain == Socket::PF_INET6) {
+        my $local  = join ':', $sock->sockhost_service(1);
+        my $remote = join ':', $sock->peerhost_service(1);
+        $log->tracef('Connected to %s as %s from %s', $endpoint, $remote, $local);
+    } elsif ($sock->sockdomain == Socket::PF_UNIX) {
+        $log->tracef('Connected to %s as %s', $endpoint, $sock->peerpath);
+    }
 
     # We start with a null handler for read, because our behaviour varies depending on
     # whether we want to go through the SSL dance or not.
