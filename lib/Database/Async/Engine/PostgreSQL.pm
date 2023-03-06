@@ -984,6 +984,56 @@ sub query { die 'use handle_query instead'; }
 
 sub active_query { shift->{active_query} }
 
+=head2 _remove_from_loop
+
+Called when this engine instance is removed from the main event loop, usually just before the instance
+is destroyed.
+
+Since we could be in various states of authentication or query processing, we potentially have many
+different elements to clean up here. We do these explicitly so that we can apply some ordering to the events:
+clear out things that relate to queries before dropping the connection, for example.
+
+=cut
+
+sub _remove_from_loop {
+    my ($self, $loop) = @_;
+    if(my $query = delete $self->{active_query}) {
+        $query->fail('disconnected') unless $query->completed->is_ready;
+    }
+    if(my $idle = delete $self->{idle}) {
+        $idle->cancel;
+    }
+    if(my $auth = delete $self->{authenticated}) {
+        $auth->cancel;
+    }
+    if(my $connected = delete $self->{connected}) {
+        $connected->finish;
+    }
+    if(my $outgoing = delete $self->{outgoing}) {
+        $outgoing->finish unless $outgoing->is_ready;
+    }
+    if(my $incoming = delete $self->{incoming}) {
+        $incoming->finish unless $incoming->is_ready;
+    }
+    if(my $stream = delete $self->{stream}) {
+        $stream->close_now;
+        $stream->remove_from_parent;
+    }
+    if(my $conn = delete $self->{connection}) {
+        $conn->cancel;
+    }
+    # Observable connection parameters - signal that no further updates are expected
+    for my $k (keys %{$self->{parameter}}) {
+        my $param = delete $self->{parameter}{$k};
+        $param->finish if $param;
+    }
+    if(my $ryu = delete $self->{ryu}) {
+        $ryu->remove_from_parent;
+    }
+    delete $self->{protocol};
+    return $self->next::method($loop);
+}
+
 1;
 
 __END__
