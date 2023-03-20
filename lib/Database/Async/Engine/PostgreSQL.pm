@@ -490,7 +490,7 @@ sub on_read {
         # the connection ASAP, and avoid any chance of barrelling through to a COMMIT or other
         # risky operation.
         $log->errorf('Failed to handle read, connection is no longer in a valid state: %s', $e);
-        $self->close_now;
+        $stream->close_now;
     } finally {
         $self->connected->set_numeric(0) if $eof;
     }
