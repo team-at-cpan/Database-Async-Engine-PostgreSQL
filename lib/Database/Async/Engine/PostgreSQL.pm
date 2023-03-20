@@ -1098,7 +1098,7 @@ a ->connection first
 
 Tom Molesworth C<< <TEAM@cpan.org> >>
 
-with contributions from Tortsten Förtsch C<< <OPI@cpan.org> >>
+with contributions from Tortsten Förtsch C<< <OPI@cpan.org> >> and Maryam Nafisi C<< <maryam@firstsource.tech> >>.
 
 =head1 LICENSE
 

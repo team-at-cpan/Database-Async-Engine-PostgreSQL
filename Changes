@@ -8,6 +8,7 @@ Revision history for {{$dist->name}}
     [Bugs fixed]
 
     - removing from the event loop would leave behind some state, causing a memory leak
+    - incorrect method name when closing a connection, fix thanks to Maryam Nafisi
 
 1.001     2022-12-07 19:36:46+08:00 Asia/Singapore
     [New features]
