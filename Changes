@@ -1,6 +1,13 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+    [New features]
+
+    - support for connections to Unix sockets, thanks to Torsten Förtsch
+
+    [Bugs fixed]
+
+    - removing from the event loop would leave behind some state, causing a memory leak
 
 1.001     2022-12-07 19:36:46+08:00 Asia/Singapore
     [New features]
