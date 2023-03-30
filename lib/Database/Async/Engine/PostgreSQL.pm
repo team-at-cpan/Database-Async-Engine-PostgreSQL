@@ -90,7 +90,7 @@ Database::Async::Engine->register_class(
 
 sub configure {
     my ($self, %args) = @_;
-    for (qw(service encoding application_name)) {
+    for (qw(service encoding application_name connection_timeout)) {
         $self->{$_} = delete $args{$_} if exists $args{$_};
     }
     return $self->next::method(%args);
@@ -167,9 +167,7 @@ async sub connect {
     my $connected = $self->connected;
     die 'We think we are already connected, and that is bad' if $connected->as_numeric;
 
-    # Initial connection is made directly through the URI
-    # parameters. Eventually we also want to support UNIX
-    # socket and other types.
+    # Initial connection is made directly through the URI parameters
     $self->{uri} ||= $self->uri_for_service($self->service) if $self->service;
     my $uri = $self->uri;
     die 'bad URI' unless ref $uri;
@@ -182,8 +180,6 @@ async sub connect {
         $Protocol::Database::PostgreSQL::Constants::SSL_NAME_MAP{$mode} // die 'unknown SSL mode ' . $mode;
     };
 
-    # We're assuming TCP (either v4 or v6) here, but there's not really any reason we couldn't have
-    # UNIX sockets or other transport layers here other than lack of demand so far.
     my @connect_params;
     if ($uri->host and not $uri->host =~ m!^[/@]!) {
         @connect_params = (
@@ -208,7 +204,19 @@ async sub connect {
             }
         );
     }
-    my $sock = await $loop->connect(@connect_params);
+
+    # We have a few stages in connection, so we'll create a common timeout Future and
+    # set a limit on _total_ elapsed time for connection establishment, including SSL
+    # but _not_ including authentication. If there's no timeout, we just use a Future
+    # which never resolves.
+    my $timeout = $self->connection_timeout ? $loop->timeout_future(
+        after => $self->connection_timeout
+    ) : $loop->new_future->set_label('infinite_timeout_for_postgresql_connection');
+
+    my $sock = await Future->needs_any(
+        $loop->connect(@connect_params),
+        $timeout->without_cancel, # keep this around for the next stage
+    );
 
     if ($sock->sockdomain == Socket::PF_INET or $sock->sockdomain == Socket::PF_INET6) {
         my $local  = join ':', $sock->sockhost_service(1);
@@ -226,14 +234,20 @@ async sub connect {
             on_read  => sub { 0 }
         )
     );
-
-    # SSL is conveniently simple: a prefix exchange before the real session starts,
-    # and the user can decide whether SSL is mandatory or optional.
-    $stream = await $self->negotiate_ssl(
-        stream => $stream,
-    );
-
     Scalar::Util::weaken($self->{stream} = $stream);
+
+    # TLS is conveniently simple: a prefix exchange before the real session starts,
+    # and the user can decide whether TLS is mandatory or optional. This may return
+    # the original stream, or a new TLS-wrapped one.
+    $stream = await Future->needs_any(
+        $self->negotiate_ssl(
+            stream => $stream,
+        ),
+        $timeout, # no need for ->without_cancel since this is the last step
+    );
+    # The returned `$stream` may have changed
+    Scalar::Util::weaken($self->{stream} = $stream);
+
     $self->outgoing->each(sub {
         $log->tracef('Write bytes [%v02x]', $_);
         $self->ready_for_query->set_string('');
@@ -406,7 +420,18 @@ async sub negotiate_ssl {
 }
 
 sub is_replication { shift->{is_replication} //= 0 }
+
 sub application_name { shift->{application_name} //= 'perl' }
+
+=head2 connection_timeout
+
+The timeout in seconds allowed for the initial database connection, including SSL negotiation.
+
+Defaults to no timeout (waits indefinitely).
+
+=cut
+
+sub connection_timeout { shift->{connection_timeout} }
 
 =head2 uri_for_dsn
 
