@@ -30,6 +30,7 @@ on 'test' => sub {
     requires 'Log::Any::Test', '>= 1.710';
     requires 'Log::Any::Adapter::TAP';
     requires 'File::Temp';
+    requires 'Test::NoLeaks';
 };
 
 on 'develop' => sub {
