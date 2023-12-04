@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+1.003     2023-12-04 23:22:18+08:00 Asia/Singapore
     [New features]
 
     - support for attributes and default values in ORM
