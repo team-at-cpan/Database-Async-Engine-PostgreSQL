@@ -1,0 +1,104 @@
+Revision history for Database-Async-Engine-PostgreSQL
+
+1.003     2023-12-04 23:22:18+08:00 Asia/Singapore
+    [New features]
+
+    - support for attributes and default values in ORM
+
+1.002     2023-03-20 09:08:00+08:00 Asia/Singapore
+    [New features]
+
+    - support for connections to Unix sockets, thanks to Torsten Förtsch
+
+    [Bugs fixed]
+
+    - removing from the event loop would leave behind some state, causing a memory leak
+    - incorrect method name when closing a connection, fix thanks to Maryam Nafisi
+
+1.001     2022-12-07 19:36:46+08:00 Asia/Singapore
+    [New features]
+
+    - better flow-control support for incoming data
+
+1.000     2022-09-07 05:02:18+08:00 Asia/Singapore
+    [New features]
+
+    - support for SCRAM-SHA256 authentication (required for recent PostgreSQL versions)
+
+0.012     2021-09-13 00:42:06+08:00 Asia/Kuala_Lumpur
+    [New features]
+
+    - pgpass support, thanks to Torsten Förtsch
+    - can now specify `application_name` in engine config
+    - disconnection notification (and active query termination) via ->connected method
+
+0.011     2021-06-16 01:00:08+08:00 Asia/Kuala_Lumpur
+    [New features]
+
+    - encoding support, requires Database::Async 0.14+
+
+    [Bugs fixed]
+
+    - query completion fixes to align with latest Database::Async
+
+0.010     2020-12-07 02:54:29+08:00 Asia/Kuala_Lumpur
+    No new features.
+
+    Bugs fixed:
+
+    - the `service` parameter from `Database::Async->new(engine => { service => 'xxx' })`
+    is now applied and used for connections
+
+0.009     2020-12-03 00:18:17+08:00 Asia/Kuala_Lumpur
+    New features:
+
+    - support PGSERVICE, PGSERVICEFILE and PGSYSCONFDIR for locating and using
+    PostgreSQL service definitions
+
+0.008     2019-07-16 20:40:17+08:00 Asia/Kuala_Lumpur
+    No new features.
+
+    Bugs fixed:
+
+    - when creating a table, the primary key(s) were not quoted
+
+0.007     2019-06-30 01:52:53+08:00 Asia/Kuala_Lumpur
+    No new features.
+
+    Bugs fixed:
+
+    - improved query performance, particularly in COPY operations,
+    by allowing multiple smaller writes to be combined
+
+0.006     2019-06-04 23:47:47+08:00 Asia/Kuala_Lumpur
+    New features:
+
+    - some updates to handle primary keys on tables in ::DDL
+
+0.005     2019-05-05 19:21:51+08:00 Asia/Kuala_Lumpur
+    No new features.
+
+    Bugs fixed:
+
+    - improvement schema handling in DDL generation methods to be more consistent
+
+0.004     2019-05-01 06:46:59+08:00 Asia/Kuala_Lumpur
+    New features:
+
+    - very basic type and table info retrieval, intended as a starting point
+    to replace the common information_schema handling used in other databases.
+
+0.003     2019-04-21 14:20:29+08:00 Asia/Kuala_Lumpur
+    New features:
+
+    - imported temporary schema generation templates in ::DDL
+
+0.002     2019-04-20 15:18:59+08:00 Asia/Kuala_Lumpur
+    New features:
+
+    - ->write_len equivalent for ->read_len, defaults to 2MB (previously 8KB which was
+    not so efficient when dealing with larger queries or bulk transfer such as COPY IN)
+    - ->application_name support (for cases where it's not so easy to add that to the URI)
+
+0.001     2019-04-15 06:29:39+08:00 Asia/Kuala_Lumpur
+    Initial CPAN release
