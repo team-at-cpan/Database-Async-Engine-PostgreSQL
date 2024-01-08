@@ -919,8 +919,10 @@ sub simple_query {
     die 'already have active query' if $self->{active_query};
     $self->{active_query} = my $query = Database::Async::Query->new(
         sql      => $sql,
+        db       => $self->db,
         row_data => my $src = $self->ryu->source
     );
+    $query->completed->on_ready(sub { $src->finish });
     $self->protocol->simple_query($self->encode_text($query->sql));
     return $src;
 }
