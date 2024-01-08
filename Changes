@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+1.004     2024-01-08 14:22:35+08:00 Asia/Singapore
     [Bugs fixed]
 
     - for ->simple_query(), ensure we finish the row source, and pass through the Database::Async
