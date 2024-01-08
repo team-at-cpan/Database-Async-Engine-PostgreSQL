@@ -6,7 +6,7 @@ use warnings;
 
 use utf8;
 
-our $VERSION = '1.003';
+our $VERSION = '1.004';
 
 use parent qw(Database::Async::Engine);
 
