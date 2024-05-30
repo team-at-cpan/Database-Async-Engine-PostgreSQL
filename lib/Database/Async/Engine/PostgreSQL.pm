@@ -768,6 +768,17 @@ sub protocol {
                     $log->tracef('Ready for query, state is %s', $msg->state);
                     $self->ready_for_query->set_string($msg->state);
                     $self->db->engine_ready($self) if $self->db;
+                    if ($self->{active_query}) {
+                        $log->tracef('There is a active query and we received ready_for_query.');
+                        if ($self->{active_query}->completed->is_ready) {
+                            # Fallback
+                            $log->tracef('The query is finalized, will remove it now.');
+                            delete $self->{active_query};
+                        }
+                        else {
+                            $log->tracef('Query is not finalized yet, the message might be send as part of initial connection setup flow. Not messing around with it');
+                        }
+                    }
                 }),
                 backend_key_data => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
