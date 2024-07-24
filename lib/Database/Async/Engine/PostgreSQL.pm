@@ -85,7 +85,7 @@ Database::Async::Engine->register_class(
 
 =cut
 
-sub configure {
+method configure {
     my ($self, %args) = @_;
     for (qw(service encoding application_name)) {
         $self->{$_} = delete $args{$_} if exists $args{$_};
@@ -93,7 +93,7 @@ sub configure {
     return $self->next::method(%args);
 }
 
-sub encoding { shift->{encoding} }
+method encoding { shift->{encoding} }
 
 =head2 connection
 
@@ -102,7 +102,7 @@ and will attempt to connect if we are not already connected.
 
 =cut
 
-sub connection {
+method connection {
     my ($self) = @_;
     $self->{connection} //= $self->connect;
 }
@@ -124,7 +124,7 @@ values from L<Protocol::Database::PostgreSQL::Constants>:
 
 =cut
 
-sub ssl { shift->{ssl} }
+method ssl { shift->{ssl} }
 
 =head2 read_len
 
@@ -135,7 +135,7 @@ Defaults to 2 megabytes.
 
 =cut
 
-sub read_len { shift->{read_len} //= 2 * 1024 * 1024 }
+method read_len { shift->{read_len} //= 2 * 1024 * 1024 }
 
 =head2 write_len
 
@@ -146,7 +146,7 @@ Defaults to 2 megabytes.
 
 =cut
 
-sub write_len { shift->{write_len} //= 2 * 1024 * 1024 }
+method write_len { shift->{write_len} //= 2 * 1024 * 1024 }
 
 =head2 connect
 
@@ -157,7 +157,7 @@ once ready.
 
 =cut
 
-async sub connect {
+async method connect {
     my ($self) = @_;
     my $loop = $self->loop;
 
@@ -291,19 +291,19 @@ sub find_service {
     return $data->{$srv};
 }
 
-sub service { shift->{service} //= $ENV{PGSERVICE} }
+method service { shift->{service} //= $ENV{PGSERVICE} }
 
-sub database_name {
+method database_name {
     my $uri = shift->uri;
     return $uri->dbname // $uri->user // 'postgres'
 }
 
-sub database_user {
+method database_user {
     my $uri = shift->uri;
     return $uri->user // 'postgres'
 }
 
-sub password_from_file {
+method password_from_file {
     my $self = shift;
     my $pwfile = $ENV{PGPASSFILE} || File::HomeDir->my_home . '/.pgpass';
 
@@ -346,7 +346,7 @@ sub password_from_file {
     return undef;
 }
 
-sub database_password {
+method database_password {
     my $self = shift;
     return $self->uri->password // $ENV{PGPASSWORD} || $self->password_from_file
 }
@@ -357,7 +357,7 @@ Apply SSL negotiation.
 
 =cut
 
-async sub negotiate_ssl {
+async method negotiate_ssl {
     my ($self, %args) = @_;
     my $stream = delete $args{stream};
 
@@ -402,8 +402,8 @@ async sub negotiate_ssl {
     return $stream;
 }
 
-sub is_replication { shift->{is_replication} //= 0 }
-sub application_name { shift->{application_name} //= 'perl' }
+method is_replication { shift->{is_replication} //= 0 }
+method application_name { shift->{application_name} //= 'perl' }
 
 =head2 uri_for_dsn
 
@@ -413,7 +413,7 @@ May throw an exception if we don't have a valid string.
 
 =cut
 
-sub uri_for_dsn {
+method uri_for_dsn {
     my ($class, $dsn) = @_;
     die 'invalid DSN, expecting DBI:Pg:...' unless $dsn =~ s/^DBI:Pg://i;
     my %args = split /[=;]/, $dsn;
@@ -422,7 +422,7 @@ sub uri_for_dsn {
     $uri
 }
 
-sub uri_for_service {
+method uri_for_service {
     my ($class, $service) = @_;
     my $cfg = $class->find_service($service);
 
@@ -453,7 +453,7 @@ The L<IO::Async::Stream> representing the database connection.
 
 =cut
 
-sub stream { shift->{stream} }
+method stream { shift->{stream} }
 
 =head2 on_read
 
@@ -473,7 +473,7 @@ Expects the following parameters:
 
 =cut
 
-sub on_read {
+method on_read {
     my ($self, $stream, $buffref, $eof) = @_;
 
     try {
@@ -500,7 +500,7 @@ Provides a L<Ryu::Async> instance.
 
 =cut
 
-sub ryu {
+method ryu {
     my ($self) = @_;
     $self->{ryu} //= do {
         $self->add_child(
@@ -516,7 +516,7 @@ L<Ryu::Source> representing outgoing packets for the current database connection
 
 =cut
 
-sub outgoing {
+method outgoing {
     my ($self) = @_;
     $self->{outgoing} //= $self->ryu->source;
 }
@@ -527,7 +527,7 @@ L<Ryu::Source> representing incoming packets for the current database connection
 
 =cut
 
-sub incoming {
+method incoming {
     my ($self) = @_;
     $self->{incoming} //= $self->ryu->source;
 }
@@ -539,7 +539,7 @@ and 0 if we're disconnected.
 
 =cut
 
-sub connected {
+method connected {
     my ($self) = @_;
     $self->{connected} //= do {
         my $obs = Ryu::Observable->new(0);
@@ -570,7 +570,7 @@ Resolves once database authentication is complete.
 
 =cut
 
-sub authenticated {
+method authenticated {
     my ($self) = @_;
     $self->{authenticated} //= $self->loop->new_future;
 }
@@ -695,7 +695,7 @@ and setting up event handlers if necessary.
 
 =cut
 
-sub protocol {
+method protocol {
     my ($self) = @_;
     $self->{protocol} //= do {
         my $pg = Protocol::Database::PostgreSQL::Client->new(
@@ -878,7 +878,7 @@ Marks a parameter update from the server.
 
 =cut
 
-sub set_parameter {
+method set_parameter {
     my ($self, $k, $v) = @_;
     if(my $param = $self->{parameter}{$k}) {
         $param->set_string($v);
@@ -894,14 +894,14 @@ Resolves when we are idle and ready to process the next request.
 
 =cut
 
-sub idle {
+method idle {
     my ($self) = @_;
     $self->{idle} //= $self->loop->new_future->on_ready(sub {
         delete $self->{idle}
     });
 }
 
-sub ready_for_query {
+method ready_for_query {
     my ($self) = @_;
     $self->{ready_for_query} //= do {
         Ryu::Observable->new(0)->subscribe($self->$curry::weak(sub {
@@ -912,7 +912,7 @@ sub ready_for_query {
     }
 }
 
-sub simple_query {
+method simple_query {
     my ($self, $sql) = @_;
     die 'already have active query' if $self->{active_query};
     $self->{active_query} = my $query = Database::Async::Query->new(
@@ -925,21 +925,21 @@ sub simple_query {
     return $src;
 }
 
-sub encode_text {
+method encode_text {
     my ($self, $txt) = @_;
     return $txt unless defined $txt and my $encoding = $self->encoding;
     return Unicode::UTF8::encode_utf8($txt) if $encoding eq 'UTF-8';
     return Encode::encode($encoding, $txt, Encode::FB_CROAK);
 }
 
-sub decode_text {
+method decode_text {
     my ($self, $txt) = @_;
     return $txt unless defined $txt and my $encoding = $self->encoding;
     return Unicode::UTF8::decode_utf8($txt) if $encoding eq 'UTF-8';
     return Encode::decode($encoding, $txt, Encode::FB_CROAK);
 }
 
-sub handle_query {
+method handle_query {
     my ($self, $query) = @_;
     die 'already have active query' if $self->{active_query};
     $self->{active_query} = $query;
@@ -980,9 +980,9 @@ sub handle_query {
     Future->done
 }
 
-sub query { die 'use handle_query instead'; }
+method query { die 'use handle_query instead'; }
 
-sub active_query { shift->{active_query} }
+method active_query { shift->{active_query} }
 
 =head2 _remove_from_loop
 
@@ -995,7 +995,7 @@ clear out things that relate to queries before dropping the connection, for exam
 
 =cut
 
-sub _remove_from_loop {
+method _remove_from_loop {
     my ($self, $loop) = @_;
     if(my $query = delete $self->{active_query}) {
         $query->fail('disconnected') unless $query->completed->is_ready;
