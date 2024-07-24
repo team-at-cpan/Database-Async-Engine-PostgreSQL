@@ -766,6 +766,7 @@ sub protocol {
                 ready_for_query => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
                     $log->tracef('Ready for query, state is %s', $msg->state);
+                    delete $self->{active_query};
                     $self->ready_for_query->set_string($msg->state);
                     $self->db->engine_ready($self) if $self->db;
                 }),
