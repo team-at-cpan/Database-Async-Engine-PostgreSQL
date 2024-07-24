@@ -73,11 +73,6 @@ use Protocol::Database::PostgreSQL::Constants qw(:v1);
 
 use Log::Any qw($log);
 
-use overload
-    '""' => sub { ref(shift) },
-    bool => sub { 1 },
-    fallback => 1;
-
 Database::Async::Engine->register_class(
     postgresql => __PACKAGE__
 );
