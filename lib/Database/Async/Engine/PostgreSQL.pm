@@ -68,7 +68,7 @@ use Unicode::UTF8;
 use Crypt::Digest::SHA256 ();
 use Crypt::Mac::HMAC ();
 
-use Protocol::Database::PostgreSQL::Client qw(2.000);
+use Protocol::Database::PostgreSQL::Client 2.000;
 use Protocol::Database::PostgreSQL::Constants qw(:v1);
 
 use Log::Any qw($log);
