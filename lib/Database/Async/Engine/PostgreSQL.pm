@@ -80,9 +80,11 @@ Database::Async::Engine->register_class(
     postgresql => __PACKAGE__
 );
 
-field $service;
-field $encoding;
-field $application_name;
+field $service : reader;
+field $encoding : reader;
+field $application_name : reader;
+field $connection;
+field $ssl : reader;
 
 =head1 METHODS
 
@@ -97,8 +99,6 @@ method configure (%args) {
     return $self->next::method(%args);
 }
 
-method encoding { shift->{encoding} }
-
 =head2 connection
 
 Returns a L<Future> representing the database connection,
@@ -107,8 +107,7 @@ and will attempt to connect if we are not already connected.
 =cut
 
 method connection {
-    my ($self) = @_;
-    $self->{connection} //= $self->connect;
+    $connection //= $self->connect;
 }
 
 =head2 ssl
@@ -127,8 +126,6 @@ values from L<Protocol::Database::PostgreSQL::Constants>:
 =back
 
 =cut
-
-method ssl { shift->{ssl} }
 
 =head2 read_len
 
