@@ -705,163 +705,144 @@ method protocol {
         $self->incoming
             ->switch_str(
                 sub { $_->type },
-                authentication_request => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Auth request received: %s', $msg);
-                    my $code = $AUTH_HANDLER{$msg->auth_type}
-                        or $log->errorf('unknown auth type %s', $msg->auth_type);
-                    $self->$code($msg);
-                }),
-                password => $self->$curry::weak(sub {
-                    my ($self, %args) = @_;
-                    $log->tracef('Auth request received: %s', \%args);
-                    $self->protocol->{user} = $self->uri->user;
-                    $self->protocol->send_message('PasswordMessage', password => $self->encode_text($self->database_password));
-                }),
-                parameter_status => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Parameter received: %s', $msg);
-                    $self->set_parameter(map $self->decode_text($_), $msg->key => $msg->value);
-                }),
-                row_description => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Row description %s', $msg);
-                    $log->errorf('No active query?') unless my $q = $self->active_query;
-                    $q->row_description($msg->description);
-                }),
-                data_row => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Have row data %s', $msg);
-                    $self->{fc} ||= $self->active_query->row_data->flow_control->each($self->$curry::weak(sub {
-                        my ($self) = @_;
-                        $log->tracef('Flow control event - will %s stream', $_ ? 'resume' : 'pause');
-                        $self->stream->want_readready($_) if $self->stream;
-                    }));
-                    $self->active_query->row([ map $self->decode_text($_), $msg->fields ]);
-                }),
-                command_complete => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    delete $self->{fc};
-                    my $query = delete $self->{active_query} or do {
-                        $log->warnf('Command complete but no query');
-                        return;
-                    };
-                    $log->tracef('Completed query %s with result %s', $query, $msg->result);
-                    $query->done unless $query->completed->is_ready;
-                }),
-                no_data => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Completed query %s with no data', $self->active_query);
-                    # my $query = delete $self->{active_query};
-                    # $query->done if $query;
-                }),
-                send_request => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Send request for %s', $msg);
-                    $self->stream->write($msg);
-                }),
-                ready_for_query => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Ready for query, state is %s', $msg->state);
-                    delete $self->{active_query};
-                    $self->ready_for_query->set_string($msg->state);
-                    $self->db->engine_ready($self) if $self->db;
-                }),
-                backend_key_data => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Backend key data: pid %d, key 0x%08x', $msg->pid, $msg->key);
-                }),
-                parse_complete => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Parsing complete for query %s', $self->active_query);
-                }),
-                bind_complete => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Bind complete for query %s', $self->active_query);
-                }),
-                close_complete => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    delete $self->{fc};
-                    $log->tracef('Close complete for query %s', $self->active_query);
-                }),
-                empty_query_response => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Query returned no results for %s', $self->active_query);
-                }),
-                error_response => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    if(my $query = $self->active_query) {
-                        $log->warnf('Query returned error %s for %s', $msg->error, $self->active_query);
-                        my $f = $query->completed;
-                        $f->fail($msg->error) unless $f->is_ready;
-                    } else {
-                        $log->errorf('Received error %s with no active query', $msg->error);
-                    }
-                }),
-                copy_in_response => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    my $query = $self->active_query;
-                    $log->tracef('Ready to copy data for %s', $query);
-                    my $proto = $self->protocol;
-                    {
-                        my $src = $query->streaming_input;
-                        $src->completed
-                            ->on_ready(sub {
-                                my ($f) = @_;
-                                $log->tracef('Sending copy done notification, stream status was %s', $f->state);
-                                $proto->send_message(
-                                    'CopyDone',
-                                    data => '',
-                                );
-                                $proto->send_message(
-                                    'Close',
-                                    portal    => '',
-                                    statement => '',
-                                );
-                                $proto->send_message(
-                                    'Sync',
-                                    portal    => '',
-                                    statement => '',
-                                );
-                            });
-                            $src->each(sub {
-                                $log->tracef('Sending %s', $_);
-                                $proto->send_copy_data($_);
-                            });
-                    }
-                    $query->ready_to_stream->done unless $query->ready_to_stream->is_ready;
-                }),
-                copy_out_response => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('copy out starts %s', $msg);
-                    # $self->active_query->row([ $msg->fields ]);
-                }),
-                copy_data => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Have copy data %s', $msg);
-                    my $query = $self->active_query or do {
-                        $log->warnf('No active query for copy data');
-                        return;
-                    };
-                    $query->row([ map $self->decode_text($_), @$_ ]) for $msg->rows;
-                }),
-                copy_done => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    $log->tracef('Copy done - %s', $msg);
-                }),
-                notification_response => $self->$curry::weak(sub {
-                    my ($self, $msg) = @_;
-                    my ($chan, $data) = @{$msg}{qw(channel data)};
-                    $log->tracef('Notification on channel %s containing %s', $chan, $data);
-                    $self->db->notification($self, map $self->decode_text($_), $chan, $data);
-                }),
                 sub { $log->errorf('Unknown message %s (type %s)', $_, $_->type) }
             );
         $pg
     }
 }
 
-sub stream_from {
+async method authentication_request ($msg) {
+    $log->tracef('Auth request received: %s', $msg);
+    my $code = $AUTH_HANDLER{$msg->auth_type}
+        or $log->errorf('unknown auth type %s', $msg->auth_type);
+    $self->$code($msg);
+}
+async method password ($msg) {
+    $log->tracef('Auth request received: %s', \%args);
+    $self->protocol->{user} = $self->uri->user;
+    $self->protocol->send_message('PasswordMessage', password => $self->encode_text($self->database_password));
+}
+async method parameter_status ($msg) {
+    $log->tracef('Parameter received: %s', $msg);
+    $self->set_parameter(map $self->decode_text($_), $msg->key => $msg->value);
+}
+async method row_description ($msg) {
+    $log->tracef('Row description %s', $msg);
+    $log->errorf('No active query?') unless my $q = $self->active_query;
+    $q->row_description($msg->description);
+}
+async method data_row ($msg) {
+    $log->tracef('Have row data %s', $msg);
+    $self->{fc} ||= $self->active_query->row_data->flow_control->each($self->$curry::weak(sub {
+        my ($self) = @_;
+        $log->tracef('Flow control event - will %s stream', $_ ? 'resume' : 'pause');
+        $self->stream->want_readready($_) if $self->stream;
+    }));
+    $self->active_query->row([ map $self->decode_text($_), $msg->fields ]);
+}
+async method command_complete ($msg) {
+    delete $self->{fc};
+    my $query = delete $self->{active_query} or do {
+        $log->warnf('Command complete but no query');
+        return;
+    };
+    $log->tracef('Completed query %s with result %s', $query, $msg->result);
+    $query->done unless $query->completed->is_ready;
+}
+async method no_data ($msg) {
+    $log->tracef('Completed query %s with no data', $self->active_query);
+    # my $query = delete $self->{active_query};
+    # $query->done if $query;
+}
+async method send_request ($msg) {
+    $log->tracef('Send request for %s', $msg);
+    $self->stream->write($msg);
+}
+async method ready_for_query ($msg) {
+    $log->tracef('Ready for query, state is %s', $msg->state);
+    delete $self->{active_query};
+    $self->ready_for_query->set_string($msg->state);
+    $self->db->engine_ready($self) if $self->db;
+}
+async method backend_key_data ($msg) {
+    $log->tracef('Backend key data: pid %d, key 0x%08x', $msg->pid, $msg->key);
+}
+async method parse_complete ($msg) {
+    $log->tracef('Parsing complete for query %s', $self->active_query);
+}
+async method bind_complete ($msg) {
+    $log->tracef('Bind complete for query %s', $self->active_query);
+}
+async method close_complete ($msg) {
+    delete $self->{fc};
+    $log->tracef('Close complete for query %s', $self->active_query);
+}
+async method empty_query_response ($msg) {
+    $log->tracef('Query returned no results for %s', $self->active_query);
+}
+async method error_response ($msg) {
+    if(my $query = $self->active_query) {
+        $log->warnf('Query returned error %s for %s', $msg->error, $self->active_query);
+        my $f = $query->completed;
+        $f->fail($msg->error) unless $f->is_ready;
+    } else {
+        $log->errorf('Received error %s with no active query', $msg->error);
+    }
+}
+async method copy_in_response (
+    my $query = $self->active_query;
+    $log->tracef('Ready to copy data for %s', $query);
+    my $proto = $self->protocol;
+    {
+        my $src = $query->streaming_input;
+        $src->completed
+            ->on_ready(sub {
+                my ($f) = @_;
+                $log->tracef('Sending copy done notification, stream status was %s', $f->state);
+                $proto->send_message(
+                    'CopyDone',
+                    data => '',
+                );
+                $proto->send_message(
+                    'Close',
+                    portal    => '',
+                    statement => '',
+                );
+                $proto->send_message(
+                    'Sync',
+                    portal    => '',
+                    statement => '',
+                );
+            });
+            $src->each(sub {
+                $log->tracef('Sending %s', $_);
+                $proto->send_copy_data($_);
+            });
+    }
+    $query->ready_to_stream->done unless $query->ready_to_stream->is_ready;
+}),
+async method copy_out_response ($msg) {
+    $log->tracef('copy out starts %s', $msg);
+    # $self->active_query->row([ $msg->fields ]);
+}
+async method copy_data ($msg) {
+    $log->tracef('Have copy data %s', $msg);
+    my $query = $self->active_query or do {
+        $log->warnf('No active query for copy data');
+        return;
+    };
+    $query->row([ map $self->decode_text($_), @$_ ]) for $msg->rows;
+}
+async method copy_done ($msg) {
+    $log->tracef('Copy done - %s', $msg);
+}
+async method notification_response ($msg) {
+    my ($chan, $data) = @{$msg}{qw(channel data)};
+    $log->tracef('Notification on channel %s containing %s', $chan, $data);
+    $self->db->notification($self, map $self->decode_text($_), $chan, $data);
+}
+
+method stream_from {
     my ($self, $src) = @_;
     my $proto = $self->proto;
     $src->each(sub {
