@@ -21,7 +21,7 @@ use Database::Async::Engine::PostgreSQL;
 use Log::Any::Adapter qw(TAP);
 use Log::Any qw($log);
 
-plan skip_all => 'set DATABASE_ASYNC_PG_TEST env var to test' unless exists $ENV{DATABASE_ASYNC_PG_TEST};
+plan skip_all => 'set DATABASE_ASYNC_PG_TEST env var to test' unless exists $ENV{DATABASE_ASYNC_PG_SERVICE};
 
 my $loop = IO::Async::Loop->new;
 
@@ -31,6 +31,12 @@ is(exception {
         $db = Database::Async->new(
             type => 'postgresql',
             encoding => 'UTF-8',
+            pool => {
+                max => 1,
+            },
+            engine => {
+                service => $ENV{DATABASE_ASYNC_PG_SERVICE},
+            },
         )
     );
 }, undef, 'can safely add to the loop');

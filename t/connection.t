@@ -29,7 +29,7 @@ is(exception {
                 max => 2,
             },
             engine => {
-                service => $ENV{DATABASE_ASYNC_PG_SERVICE},
+                service          => $ENV{DATABASE_ASYNC_PG_SERVICE},
                 application_name => $app,
             },
         )
@@ -39,7 +39,7 @@ is(exception {
 $log->debugf('Execute single query');
 $log->tracef('Have result: %s', await Future->wait_any($db->query('select 1')->single, $loop->timeout_future(after => 3)));
 
-# Run this multiple times to ensure that our pool doesn't starve out pending queue if we disconnect after a request
+# Run this multiple times to ensure that our pool doesn't starve our pending queue if we disconnect after a request
 # is queued. This is more of an empirical test than an in-depth logic validation, since we expect that to happen
 # at the Database::Async level.
 for my $it (1..3) {
