@@ -3,6 +3,7 @@ package Database::Async::Engine::PostgreSQL;
 
 use strict;
 use warnings;
+use experimental qw(signatures);
 
 use utf8;
 
@@ -79,17 +80,20 @@ Database::Async::Engine->register_class(
     postgresql => __PACKAGE__
 );
 
+field $service;
+field $encoding;
+field $application_name;
+
 =head1 METHODS
 
 =head2 configure
 
 =cut
 
-method configure {
-    my ($self, %args) = @_;
-    for (qw(service encoding application_name)) {
-        $self->{$_} = delete $args{$_} if exists $args{$_};
-    }
+method configure (%args) {
+    $service = delete $args{service} if exists $args{service};
+    $encoding = delete $args{encoding} if exists $args{encoding};
+    $application_name = delete $args{application_name} if exists $args{application_name};
     return $self->next::method(%args);
 }
 
