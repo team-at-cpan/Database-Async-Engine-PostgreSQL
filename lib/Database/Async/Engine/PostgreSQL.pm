@@ -8,7 +8,9 @@ use utf8;
 
 our $VERSION = '1.004';
 
-use parent qw(Database::Async::Engine);
+use Object::Pad;
+class Database::Async::Engine::PostgreSQL;
+inherit Database::Async::Engine;
 
 =encoding utf8
 
