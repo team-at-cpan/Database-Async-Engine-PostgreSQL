@@ -735,15 +735,20 @@ sub protocol {
                 data_row => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
                     $log->tracef('Have row data %s', $msg);
-                    $self->{fc} ||= $self->active_query->row_data->flow_control->each($self->$curry::weak(sub {
-                        my ($self) = @_;
-                        $log->tracef('Flow control event - will %s stream', $_ ? 'resume' : 'pause');
-                        $self->stream->want_readready($_) if $self->stream;
-                    }));
+                    $self->{fc} ||= do {
+                        my $src = $self->active_query->row_data;
+                        $self->stream->want_readready($src->is_paused ? 0 : 1) if $self->stream;
+                        $src->flow_control->each($self->$curry::weak(sub {
+                            my ($self) = @_;
+                            $log->tracef('Flow control event - will %s stream', $_ ? 'resume' : 'pause');
+                            $self->stream->want_readready($_) if $self->stream;
+                        }));
+                    };
                     $self->active_query->row([ map $self->decode_text($_), $msg->fields ]);
                 }),
                 command_complete => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    # Flow control is only valid for the current stream, so we discard it here
                     delete $self->{fc};
                     my $query = delete $self->{active_query} or do {
                         $log->warnf('Command complete but no query');
@@ -754,6 +759,8 @@ sub protocol {
                 }),
                 no_data => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    # Flow control is only valid for the current stream, so we discard it here
+                    delete $self->{fc};
                     $log->tracef('Completed query %s with no data', $self->active_query);
                     # my $query = delete $self->{active_query};
                     # $query->done if $query;
@@ -765,6 +772,8 @@ sub protocol {
                 }),
                 ready_for_query => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    # Flow control is only valid for the current stream, so we discard it here
+                    delete $self->{fc};
                     $log->tracef('Ready for query, state is %s', $msg->state);
                     $self->ready_for_query->set_string($msg->state);
                     $self->db->engine_ready($self) if $self->db;
@@ -783,15 +792,20 @@ sub protocol {
                 }),
                 close_complete => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    # Flow control is only valid for the current stream, so we discard it here
                     delete $self->{fc};
                     $log->tracef('Close complete for query %s', $self->active_query);
                 }),
                 empty_query_response => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    # Flow control is only valid for the current stream, so we discard it here
+                    delete $self->{fc};
                     $log->tracef('Query returned no results for %s', $self->active_query);
                 }),
                 error_response => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    # Flow control is only valid for the current stream, so we discard it here
+                    delete $self->{fc};
                     if(my $query = $self->active_query) {
                         $log->warnf('Query returned error %s for %s', $msg->error, $self->active_query);
                         my $f = $query->completed;
@@ -849,6 +863,7 @@ sub protocol {
                 }),
                 copy_done => $self->$curry::weak(sub {
                     my ($self, $msg) = @_;
+                    delete $self->{fc};
                     $log->tracef('Copy done - %s', $msg);
                 }),
                 notification_response => $self->$curry::weak(sub {
