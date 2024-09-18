@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+1.005     2024-09-18 19:53:46+08:00 Asia/Singapore
     [Bugs fixed]
 
     - after an error, the active query was left in place which caused further query attempts
