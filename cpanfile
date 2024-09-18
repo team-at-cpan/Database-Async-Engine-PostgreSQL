@@ -1,3 +1,4 @@
+requires 'Full::Script', '>= 1.003';
 requires 'parent', 0;
 requires 'indirect', 0;
 requires 'curry', '>= 1.001';
