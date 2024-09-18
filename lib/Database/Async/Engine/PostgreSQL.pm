@@ -806,7 +806,7 @@ sub protocol {
                     my ($self, $msg) = @_;
                     # Flow control is only valid for the current stream, so we discard it here
                     delete $self->{fc};
-                    if(my $query = $self->active_query) {
+                    if(my $query = delete $self->{active_query}) {
                         $log->warnf('Query returned error %s for %s', $msg->error, $self->active_query);
                         my $f = $query->completed;
                         $f->fail($msg->error) unless $f->is_ready;
