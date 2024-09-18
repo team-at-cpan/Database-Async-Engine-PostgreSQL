@@ -29,7 +29,7 @@ my %WriteMakefileArgs = (
     "MIME::Base64" => 0,
     "Path::Tiny" => 0,
     "Protocol::Database::PostgreSQL" => "2.000",
-    "Ryu" => "3.004",
+    "Ryu" => "4.001",
     "Ryu::Async" => "0.017",
     "Syntax::Keyword::Try" => "0.25",
     "Template" => "2.28",
@@ -54,7 +54,7 @@ my %WriteMakefileArgs = (
     "Test::More" => "0.98",
     "Test::Refcount" => "0.07"
   },
-  "VERSION" => "1.004",
+  "VERSION" => "1.005",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -82,7 +82,7 @@ my %FallbackPrereqs = (
   "MIME::Base64" => 0,
   "Path::Tiny" => 0,
   "Protocol::Database::PostgreSQL" => "2.000",
-  "Ryu" => "3.004",
+  "Ryu" => "4.001",
   "Ryu::Async" => "0.017",
   "Syntax::Keyword::Try" => "0.25",
   "Template" => "2.28",
