@@ -3,7 +3,7 @@ use feature qw(state);
 
 use Test::More;
 use Test::Fatal;
-use Test::Deep;
+use Test::Deep qw();
 use Ryu::Async;
 use IO::Async::Loop;
 use Database::Async;
